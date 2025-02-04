@@ -1,0 +1,157 @@
+generator kysely {
+  provider = "prisma-kysely"
+  output   = "../src/db"
+  fileName = "types.ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  provider        String
+  providerId      String
+  email           String
+  name            String   @unique
+  image           String?
+  description     String   @default("")
+  backgroundImage String?
+  links           String[]
+  followerCount   Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  followers           Follow[]          @relation("following")
+  followings          Follow[]          @relation("follower")
+  feeds               Feed[]
+  likes               Like[]
+  feedComments        FeedComment[]     @relation("FeedCommentWrite")
+  views               View[]
+  saves               Save[]
+  feedCommentMentions FeedComment[]     @relation("MentionedUser")
+  feedCommentLikes    FeedCommentLike[]
+
+  @@unique([provider, providerId])
+}
+
+model Follow {
+  followerId  String @db.Uuid
+  followingId String @db.Uuid
+
+  follower  User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Feed {
+  id        String   @id @default(uuid()) @db.Uuid
+  authorId  String   @db.Uuid
+  title     String
+  cards     String[]
+  thumbnail String
+  isAI      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  viewCount Int      @default(0)
+  likeCount Int      @default(0)
+  content   String   @default("")
+  tags      Tag[]
+
+  author       User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes        Like[]
+  feedComments FeedComment[]
+  views        View[]
+  saves        Save[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Tag {
+  feedId  String @db.Uuid
+  tagName String
+
+  feed Feed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@id([feedId, tagName])
+  @@index([tagName])
+}
+
+model Like {
+  userId    String   @db.Uuid
+  feedId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feed Feed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@id([userId, feedId])
+}
+
+model View {
+  userId    String   @db.Uuid
+  feedId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feed Feed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@id([userId, feedId])
+}
+
+model Save {
+  userId    String   @db.Uuid
+  feedId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feed Feed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@id([userId, feedId])
+}
+
+model FeedComment {
+  id              String   @id @default(uuid()) @db.Uuid
+  feedId          String   @db.Uuid
+  writerId        String   @db.Uuid
+  parentId        String?  @db.Uuid
+  content         String
+  mentionedUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  likeCount       Int      @default(0)
+
+  writer        User              @relation("FeedCommentWrite", fields: [writerId], references: [id], onDelete: Cascade)
+  feed          Feed              @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  parent        FeedComment?      @relation("ChildComments", fields: [parentId], references: [id], onDelete: Cascade)
+  childComments FeedComment[]     @relation("ChildComments")
+  mentionedUser User?             @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: SetNull)
+  likes         FeedCommentLike[]
+
+  @@index([feedId])
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  actorId   String   @db.Uuid
+  actorName String
+  feedId    String?  @db.Uuid
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FeedCommentLike {
+  feedCommentId String @db.Uuid
+  userId        String @db.Uuid
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedComment FeedComment @relation(fields: [feedCommentId], references: [id], onDelete: Cascade)
+
+  @@id([feedCommentId, userId])
+}
