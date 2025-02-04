@@ -4,7 +4,7 @@ import {
   type SQSClient,
 } from '@aws-sdk/client-sqs';
 import type { Database } from 'src/db/database';
-import type { Client } from '@opensearch-project/opensearch/.';
+import type { Client } from '@opensearch-project/opensearch';
 
 export class UserRepository {
   constructor(private readonly db: Database, private readonly client: Client) {}

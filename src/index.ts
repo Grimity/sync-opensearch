@@ -7,7 +7,7 @@ import {
   DeleteMessageBatchCommand,
   SQSClient,
 } from '@aws-sdk/client-sqs';
-import { Client } from '@opensearch-project/opensearch/.';
+import { Client } from '@opensearch-project/opensearch';
 import { UserRepository } from './repository/user.repository';
 
 const opensearchNode = process.env.AWS_OPENSEARCH_NODE;
