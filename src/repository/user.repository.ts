@@ -10,27 +10,26 @@ export class UserRepository {
   constructor(private readonly db: Database, private readonly client: Client) {}
 
   async updateUserFollowerCount(userIds: string[]) {
-    console.log(userIds);
     const users = await this.db
       .selectFrom('User')
       .where('id', 'in', userIds)
       .select(['id', 'followerCount'])
       .execute();
 
-    console.log(users);
-
     const response = await this.client.bulk({
       index: 'user',
-      body: users.map((user) => {
-        return {
+      body: users.flatMap((user) => [
+        {
           update: {
             _id: user.id,
           },
+        },
+        {
           doc: {
             followerCount: user.followerCount,
           },
-        };
-      }),
+        },
+      ]),
     });
 
     console.log(response);
