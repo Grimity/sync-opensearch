@@ -9,6 +9,7 @@ import {
 } from '@aws-sdk/client-sqs';
 import { Client } from '@opensearch-project/opensearch';
 import { UserRepository } from './repository/user.repository';
+import { FeedRepository } from './repository/feed.repository';
 
 const opensearchNode = process.env.AWS_OPENSEARCH_NODE;
 const queueUrl = process.env.AWS_OPENSEARCH_SQS_URL;
@@ -20,9 +21,10 @@ if (opensearchNode === undefined || queueUrl === undefined) {
 const opensearch = new Client({
   node: opensearchNode,
 });
-
 const sqs = new SQSClient();
+
 const userRepository = new UserRepository(db, opensearch);
+const feedRepository = new FeedRepository(db, opensearch);
 
 export const handler: Handler = async () => {
   const { Messages } = await sqs.send(
@@ -52,12 +54,13 @@ export const handler: Handler = async () => {
 
     if (body.type === 'USER') {
       userIds.push(body.id);
-    } else {
+    } else if (body.type === 'FEED') {
       feedIds.push(body.id);
     }
   }
 
   await userRepository.updateUserFollowerCount(userIds);
+  await feedRepository.updateFeedPostCount(feedIds);
 
   await sqs.send(
     new DeleteMessageBatchCommand({
