@@ -27,53 +27,60 @@ const userRepository = new UserRepository(db, opensearch);
 const feedRepository = new FeedRepository(db, opensearch);
 
 export const handler: Handler = async () => {
-  const { Messages } = await sqs.send(
-    new ReceiveMessageCommand({
-      QueueUrl: queueUrl,
-      MaxNumberOfMessages: 10,
-    })
-  );
+  while (true) {
+    const { Messages } = await sqs.send(
+      new ReceiveMessageCommand({
+        QueueUrl: queueUrl,
+        MaxNumberOfMessages: 10,
+      })
+    );
 
-  if (Messages === undefined) {
-    console.log('No messages');
-    return;
-  }
-
-  let feedIds: string[] = [];
-  let userIds: string[] = [];
-
-  for (const message of Messages) {
-    if (message.Body === undefined) {
-      console.log('Message body is undefined');
-      continue;
+    if (Messages === undefined || Messages.length === 0) {
+      break;
     }
-    const body = JSON.parse(message.Body) as {
-      type: 'USER' | 'FEED';
-      id: string;
-    };
 
-    if (body.type === 'USER') {
-      userIds.push(body.id);
-    } else if (body.type === 'FEED') {
-      feedIds.push(body.id);
+    let feedIds: string[] = [];
+    let userIds: string[] = [];
+
+    for (const message of Messages) {
+      if (message.Body === undefined) {
+        console.log('Message body is undefined');
+        continue;
+      }
+      const body = JSON.parse(message.Body) as {
+        type: 'USER' | 'FEED';
+        id: string;
+      };
+
+      if (body.type === 'USER') {
+        userIds.push(body.id);
+      } else if (body.type === 'FEED') {
+        feedIds.push(body.id);
+      }
+    }
+
+    await Promise.all([
+      userRepository.updateUserFollowerCount(userIds),
+      feedRepository.updateFeedPostCount(feedIds),
+    ]);
+
+    await sqs.send(
+      new DeleteMessageBatchCommand({
+        QueueUrl: queueUrl,
+        Entries: Messages.map((message) => {
+          if (message.ReceiptHandle === undefined) {
+            throw new Error('ReceiptHandle is undefined');
+          }
+          return {
+            Id: message.MessageId,
+            ReceiptHandle: message.ReceiptHandle,
+          };
+        }),
+      })
+    );
+
+    if (Messages.length < 10) {
+      break;
     }
   }
-
-  await userRepository.updateUserFollowerCount(userIds);
-  await feedRepository.updateFeedPostCount(feedIds);
-
-  await sqs.send(
-    new DeleteMessageBatchCommand({
-      QueueUrl: queueUrl,
-      Entries: Messages.map((message) => {
-        if (message.ReceiptHandle === undefined) {
-          throw new Error('ReceiptHandle is undefined');
-        }
-        return {
-          Id: message.MessageId,
-          ReceiptHandle: message.ReceiptHandle,
-        };
-      }),
-    })
-  );
 };
