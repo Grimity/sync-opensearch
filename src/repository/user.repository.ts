@@ -28,7 +28,6 @@ export class UserRepository {
           doc: {
             followerCount: user.followerCount,
           },
-          doc_as_upsert: true,
         },
       ]),
     });
