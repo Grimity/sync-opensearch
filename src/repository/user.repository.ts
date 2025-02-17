@@ -1,24 +1,14 @@
-import {
-  ReceiveMessageCommand,
-  DeleteMessageBatchCommand,
-  type SQSClient,
-} from '@aws-sdk/client-sqs';
-import type { Database } from 'src/db/database';
 import type { Client } from '@opensearch-project/opensearch';
 
 export class UserRepository {
-  constructor(private readonly db: Database, private readonly client: Client) {}
+  constructor(private readonly client: Client) {}
 
-  async updateUserFollowerCount(userIds: string[]) {
-    if (userIds.length === 0) return;
+  async updateUserFollowerCount(
+    users: { id: string; followerCount: number }[]
+  ) {
+    if (users.length === 0) return;
 
-    const users = await this.db
-      .selectFrom('User')
-      .where('id', 'in', userIds)
-      .select(['id', 'followerCount'])
-      .execute();
-
-    const response = await this.client.bulk({
+    await this.client.bulk({
       index: 'user',
       body: users.flatMap((user) => [
         {
@@ -34,7 +24,6 @@ export class UserRepository {
       ]),
     });
 
-    console.log(response);
     return;
   }
 }
