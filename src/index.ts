@@ -6,11 +6,11 @@ import { UserRepository } from './repository/user.repository';
 import { FeedRepository } from './repository/feed.repository';
 
 const opensearchNode = process.env.AWS_OPENSEARCH_NODE;
-const queueUrl = process.env.AWS_OPENSEARCH_SQS_URL;
+const tableName = process.env.DYNAMODB_TABLE_NAME;
 const dynamoDB = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(dynamoDB);
 
-if (opensearchNode === undefined || queueUrl === undefined) {
+if (opensearchNode === undefined || tableName === undefined) {
   throw new Error('env is not defined');
 }
 
@@ -24,7 +24,7 @@ const feedRepository = new FeedRepository(opensearch);
 export const handler: Handler = async () => {
   const response = await ddb.send(
     new ScanCommand({
-      TableName: process.env.DYNAMODB_TABLE_NAME,
+      TableName: tableName,
     })
   );
 
